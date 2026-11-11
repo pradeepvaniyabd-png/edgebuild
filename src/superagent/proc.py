@@ -43,6 +43,29 @@ class ProcessResult:
         return text[-chars:]
 
 
+@dataclass(frozen=True)
+class ResourceLimits:
+    """OS limits for untrusted child processes (POSIX). A guard rail, not a sandbox."""
+
+    cpu_seconds: int = 120
+    file_bytes: int = 2 * 1024**3
+    # Address-space caps break runtimes that reserve large virtual ranges (Node, JVM, FFmpeg),
+    # so memory is only limited where the caller asks for it.
+    memory_bytes: int | None = None
+
+    def apply(self) -> None:  # runs in the child between fork and exec
+        import resource
+
+        wanted = [(resource.RLIMIT_CPU, self.cpu_seconds), (resource.RLIMIT_FSIZE, self.file_bytes)]
+        if self.memory_bytes is not None:
+            wanted.append((resource.RLIMIT_AS, self.memory_bytes))
+        for kind, value in wanted:
+            try:
+                resource.setrlimit(kind, (value, value))
+            except (ValueError, OSError):
+                pass
+
+
 def which(binary: str) -> str | None:
     return shutil.which(binary)
 
@@ -95,6 +118,7 @@ async def run_process(
     stdin_data: bytes | None = None,
     max_output: int = 2_000_000,
     raise_on_timeout: bool = True,
+    limits: ResourceLimits | None = None,
 ) -> ProcessResult:
     args = [os.fspath(a) for a in argv]
     require_binary(args[0])
@@ -107,6 +131,7 @@ async def run_process(
         cwd=cwd,
         env=dict(env) if env is not None else None,
         start_new_session=sys.platform != "win32",
+        preexec_fn=limits.apply if limits is not None and sys.platform != "win32" else None,
     )
 
     async def _communicate() -> tuple[tuple[bytes, bool], tuple[bytes, bool]]:

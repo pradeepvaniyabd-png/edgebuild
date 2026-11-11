@@ -97,3 +97,32 @@ def _vendor_server():
 def vendors(_vendor_server):
     _vendor_server.reset()
     return _vendor_server
+
+
+@pytest.fixture
+def tool_ctx(settings: Settings, repo: Repo):
+    """A ToolContext wired like production, with an image double so media tools can run offline."""
+    from superagent.core.approval import ApprovalManager
+    from superagent.core.cost import CostEngine
+    from superagent.memory.manager import MemoryManager
+    from superagent.providers.router import ProviderRouter
+    from superagent.providers.services import AI
+    from superagent.providers.vendors.ffmpeg_motion import FFmpegMotionVideo
+    from superagent.providers.vendors.hashing import HashingEmbedding
+    from superagent.providers.vendors.local_voice import EspeakVoice
+    from superagent.security import CommandPolicy, PathSandbox
+    from superagent.tools import ToolContext
+    from superagent.types import PermissionLevel
+    from tests.fakes import PaintedImages
+
+    sandbox = PathSandbox([settings.workspace], settings.read_roots)
+    approvals = ApprovalManager(repo, settings)
+    router = ProviderRouter()
+    for provider in (PaintedImages(), FFmpegMotionVideo(), EspeakVoice(), HashingEmbedding()):
+        router.register(provider)
+    ai = AI(router, CostEngine(repo, settings, approvals))
+    return ToolContext(
+        settings=settings, sandbox=sandbox, policy=CommandPolicy(sandbox), approvals=approvals, ai=ai, repo=repo,
+        memory=MemoryManager(repo, settings, ai), execution_id="exe_t", task_id="tsk_t", agent="tester",
+        permission=PermissionLevel.SYSTEM_WRITE,
+    )
