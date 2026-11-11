@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "super-agent-x"
+version = "0.1.0"
+description = "Local-first, provider-agnostic multi-agent task orchestration platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "aiosqlite>=0.20",
+    "alembic>=1.13",
+    "httpx>=0.27",
+    "typer>=0.12",
+    "apscheduler>=3.10,<4",
+    "pillow>=10.3",
+    "openpyxl>=3.1",
+    "pypdf>=4.2",
+    "python-docx>=1.1",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+postgres = ["asyncpg>=0.29"]
+anthropic = ["anthropic>=1.1"]
+bedrock = ["boto3>=1.34"]
+edge-tts = ["edge-tts>=6.1"]
+browser = ["playwright>=1.44"]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+super-agent = "superagent.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/superagent"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "media: needs ffmpeg/ffprobe on PATH",
+    "tts: needs a local text-to-speech binary (espeak-ng)",
+    "postgres: needs a reachable PostgreSQL (SAX_TEST_POSTGRES_URL)",
+    "slow: longer end-to-end runs",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S"]
+ignore = [
+    "S101",  # assert is fine in tests and for internal invariants
+    "S603",  # subprocess without shell: every call goes through the command policy
+    "S607",  # binaries are resolved from PATH on purpose (ffmpeg, git, ...)
+    "B008",  # FastAPI/Typer use call expressions in defaults
+    "E501",  # compact table-style literals are intentional; keep lines readable by eye
+    "ASYNC109",  # explicit timeout parameters are part of the subprocess/tool contract
+    "ASYNC230",  # small local file reads/writes; not worth a thread hop
+    "ASYNC240",  # stat()/is_file() are microsecond syscalls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B017", "E501"]
+"src/superagent/db/migrations/versions/*" = ["E501", "W291", "I001", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
