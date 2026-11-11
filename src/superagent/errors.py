@@ -86,11 +86,14 @@ class ProviderError(SuperAgentError):
         *,
         retry_after: float | None = None,
         hint: str | None = None,
+        penalize: bool = True,
     ):
         super().__init__(f"[{provider}] {message}", hint=hint)
         self.provider = provider
         self.status = status
         self.retry_after = retry_after
+        # penalize=False: the request was rejected but the provider is healthy (no cooldown).
+        self.penalize = penalize
         self.error_class = _PROVIDER_CLASS.get(status, ErrorClass.MODEL)
 
 

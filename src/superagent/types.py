@@ -76,12 +76,22 @@ class ProviderKind(StrEnum):
 
 
 class ProviderTier(IntEnum):
-    """Routing priority: lower runs first (local → free → primary cloud → secondary cloud)."""
+    """Routing priority: lower runs first (local → free → primary cloud → secondary cloud).
+
+    LOCAL_FALLBACK is for offline stand-ins that are clearly lower quality than the real
+    thing (camera motion instead of generated video, robotic speech): they run last, so
+    any configured provider of proper quality wins.
+    """
 
     LOCAL = 0
     FREE = 1
     CLOUD_PRIMARY = 2
     CLOUD_SECONDARY = 3
+    LOCAL_FALLBACK = 4
+
+    @property
+    def is_paid(self) -> bool:
+        return self in (ProviderTier.CLOUD_PRIMARY, ProviderTier.CLOUD_SECONDARY)
 
 
 class ProviderStatus(StrEnum):

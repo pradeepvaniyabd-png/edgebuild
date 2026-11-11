@@ -112,11 +112,17 @@ class Settings(BaseSettings):
     )
     replicate_video_model: str | None = Field(None, validation_alias=_alias("REPLICATE_VIDEO_MODEL"))
     replicate_video_image_key: str = Field("image", validation_alias=_alias("REPLICATE_VIDEO_IMAGE_KEY"))
+    replicate_image_input: str | None = Field(None, validation_alias=_alias("REPLICATE_IMAGE_INPUT"))
+    replicate_video_input: str | None = Field(None, validation_alias=_alias("REPLICATE_VIDEO_INPUT"))
+    replicate_api_base: str = Field("https://api.replicate.com/v1", validation_alias=_alias("REPLICATE_API_BASE"))
 
     fal_key: SecretStr | None = Field(None, validation_alias=_alias("FAL_KEY"))
     fal_image_model: str = Field("fal-ai/flux/schnell", validation_alias=_alias("FAL_IMAGE_MODEL"))
     fal_video_model: str | None = Field(None, validation_alias=_alias("FAL_VIDEO_MODEL"))
     fal_video_image_key: str = Field("image_url", validation_alias=_alias("FAL_VIDEO_IMAGE_KEY"))
+    fal_image_input: str | None = Field(None, validation_alias=_alias("FAL_IMAGE_INPUT"))
+    fal_video_input: str | None = Field(None, validation_alias=_alias("FAL_VIDEO_INPUT"))
+    fal_queue_base: str = Field("https://queue.fal.run", validation_alias=_alias("FAL_QUEUE_BASE"))
 
     comfyui_base_url: str | None = Field(None, validation_alias=_alias("COMFYUI_BASE_URL"))
     comfyui_image_workflow: Path | None = Field(None, validation_alias=_alias("COMFYUI_IMAGE_WORKFLOW"))

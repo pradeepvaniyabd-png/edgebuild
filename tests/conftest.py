@@ -69,3 +69,31 @@ def has_binary(name: str) -> bool:
 
 requires_ffmpeg = pytest.mark.skipif(not has_binary("ffmpeg"), reason="ffmpeg not installed")
 requires_espeak = pytest.mark.skipif(not has_binary("espeak-ng"), reason="espeak-ng not installed")
+
+
+@pytest.fixture(scope="session")
+def _vendor_server():
+    from tests.fakes import FakeVendors
+
+    server = FakeVendors()
+    server.start()
+    if has_binary("ffmpeg"):  # a real, tiny MP4 for the download paths
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            clip = Path(tmp) / "clip.mp4"
+            subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=160x284:rate=12:duration=1",
+                 "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)],
+                check=True,
+            )
+            server.files["clip.mp4"] = clip.read_bytes()
+    yield server
+    server.stop()
+
+
+@pytest.fixture
+def vendors(_vendor_server):
+    _vendor_server.reset()
+    return _vendor_server

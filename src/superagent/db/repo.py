@@ -44,29 +44,30 @@ class Repo:
         self.db = db
 
     # ------------------------------------------------------------ generic
-    async def _insert(self, model: type[DeclarativeBase], **fields: Any) -> dict[str, Any]:
+    # The ORM class is positional-only: several tables have a column called ``model``.
+    async def _insert(self, orm: type[DeclarativeBase], /, **fields: Any) -> dict[str, Any]:
         async with self.db.write() as session:
-            row = model(**fields)
+            row = orm(**fields)
             session.add(row)
             await session.flush()
             return row_to_dict(row) or {}
 
-    async def _update(self, model: type[DeclarativeBase], pk: Any, **fields: Any) -> None:
+    async def _update(self, orm: type[DeclarativeBase], pk: Any, /, **fields: Any) -> None:
         if not fields:
             return
-        pk_col = next(iter(model.__table__.primary_key.columns))
-        attr_key = model.__mapper__.get_property_by_column(pk_col).key
+        pk_col = next(iter(orm.__table__.primary_key.columns))
+        attr_key = orm.__mapper__.get_property_by_column(pk_col).key
         async with self.db.write() as session:
-            await session.execute(update(model).where(getattr(model, attr_key) == pk).values(**fields))
+            await session.execute(update(orm).where(getattr(orm, attr_key) == pk).values(**fields))
 
-    async def _get(self, model: type[DeclarativeBase], pk: Any) -> dict[str, Any] | None:
+    async def _get(self, orm: type[DeclarativeBase], pk: Any, /) -> dict[str, Any] | None:
         async with self.db.session() as session:
-            return row_to_dict(await session.get(model, pk))
+            return row_to_dict(await session.get(orm, pk))
 
     async def _list(
-        self, model: type[DeclarativeBase], *where: Any, order_by: Any = None, limit: int | None = None
+        self, orm: type[DeclarativeBase], /, *where: Any, order_by: Any = None, limit: int | None = None
     ) -> list[dict[str, Any]]:
-        stmt = select(model).where(*where)
+        stmt = select(orm).where(*where)
         if order_by is not None:
             stmt = stmt.order_by(*order_by) if isinstance(order_by, tuple | list) else stmt.order_by(order_by)
         if limit:
