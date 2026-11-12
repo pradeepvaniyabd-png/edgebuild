@@ -101,6 +101,28 @@ def doctor(json_out: bool = typer.Option(False, "--json")) -> None:
 
 
 @app.command()
+def audit(json_out: bool = typer.Option(False, "--json")) -> None:
+    """Security audit: auth, sandbox, command policy, file permissions, leaked secrets."""
+    from ..security.audit import run_audit
+
+    findings = with_platform(lambda p: _async_value(run_audit(p)))
+    if json_out:
+        typer.echo(json.dumps([f.to_dict() for f in findings], indent=2, ensure_ascii=False))
+    else:
+        colors = {"OK": typer.colors.GREEN, "LOW": typer.colors.BLUE, "MEDIUM": typer.colors.YELLOW, "HIGH": typer.colors.RED}
+        for f in findings:
+            typer.echo(f"{typer.style(f.severity, fg=colors[f.severity]):<14} {f.check:<20} {f.detail}")
+            if f.fix and f.severity != "OK":
+                typer.echo(f"{'':<14} {'':<20} -> {f.fix}")
+    if any(f.severity == "HIGH" for f in findings):
+        raise typer.Exit(1)
+
+
+async def _async_value(value):  # noqa: ANN001, ANN202
+    return value
+
+
+@app.command()
 def agents() -> None:
     """List agents and the actions they offer."""
     async def work(p: Platform) -> None:

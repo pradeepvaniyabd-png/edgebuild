@@ -6,6 +6,7 @@ App settings use the ``SAX_`` prefix; provider credentials keep their convention
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -208,6 +209,11 @@ class Settings(BaseSettings):
             self.logs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
+        if os.name == "posix":
+            try:
+                self.home_path.chmod(0o700)  # memories, approvals and outputs are private to the owner
+            except OSError:
+                pass
 
     def secret_values(self) -> list[str]:
         """Configured secret strings, used to mask them wherever they might surface."""

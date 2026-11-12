@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -64,8 +65,21 @@ class Database:
             async with self._sessions() as session, session.begin():
                 yield session
 
+    def _restrict_sqlite_files(self) -> None:
+        """The database holds memories and approvals: owner-only, including WAL side files."""
+        if not self.is_sqlite or os.name != "posix":
+            return
+        path = Path(self.url.split("///", 1)[-1])
+        for candidate in (path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")):
+            try:
+                if candidate.is_file():
+                    candidate.chmod(0o600)
+            except OSError:
+                pass
+
     async def migrate(self) -> None:
         await asyncio.to_thread(run_migrations, self.url)
+        self._restrict_sqlite_files()
 
     async def current_revision(self) -> str | None:
         async with self.engine.connect() as conn:
@@ -78,6 +92,7 @@ class Database:
         if auto_migrate:
             await self.migrate()
             return
+        self._restrict_sqlite_files()
         if not await self.is_current():
             raise ConfigError(
                 "database schema is not at the latest migration",
