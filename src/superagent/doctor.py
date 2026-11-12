@@ -81,7 +81,7 @@ async def run_doctor(platform: Any, *, frontend_dir: Path | None = None) -> list
             checks.append(Check(f"providers:{kind.value}", level, "none configured", hint or "see `super-agent providers`"))
 
     agents = platform.agents.names()
-    expected = {"master", "research", "coder", "debugger", "file", "analyst", "government", "trading", "system", "director", "imager", "videographer", "voice"}
+    expected = {"master", "research", "coder", "debugger", "file", "analyst", "government", "trading", "system", "director", "imager", "videographer", "voice", "factory"}
     absent = sorted(expected - set(agents))
     checks.append(Check("agent_registry", "FAIL", f"missing: {', '.join(absent)}") if absent else _ok("agent_registry", f"{len(agents)} agents"))
     checks.append(_ok("tool_registry", f"{len(platform.tools.names())} tools") if len(platform.tools.names()) >= 15 else Check("tool_registry", "FAIL", "too few tools registered"))

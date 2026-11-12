@@ -474,15 +474,17 @@ class EditorAgent(BaseAgent):
         shutil.rmtree(work, ignore_errors=True)
         expected = sum(sg.duration for sg in segments) - args.transition * (len(segments) - 1)
 
+        music_label = "user file" if brief.music_path else ("procedural ambient" if brief.ambient_music else "none")
+
         def mutate(m: ProjectManifest) -> None:
             m.outputs["render"] = {"path": str(final), "duration": info.duration, "expected_duration": expected, "subtitles": bool(ass),
-                                   "music": "user file" if brief.music_path else ("procedural ambient" if brief.ambient_music else "none")}  # fmt: skip
+                                   "music": music_label}  # fmt: skip
             m.status = "RENDERED"
 
         await s.store.update(args.project_id, mutate)
         await s.store.register_asset(args.project_id, "render", final, duration=info.duration)
         return AgentResult(output={"path": str(final), "duration": info.duration, "expected_duration": expected, "width": w, "height": h,
-                                   "subtitles": bool(ass), "scenes": len(rows)}, summary=f"rendered {info.duration:.1f}s {w}x{h}: {final.name}",
+                                   "subtitles": bool(ass), "music": music_label, "scenes": len(rows)}, summary=f"rendered {info.duration:.1f}s {w}x{h}: {final.name}",
                            artifacts=[str(final)],
                            verify=[{"type": "media", "key": "path", "kind": "video", "width": w, "height": h, "fps": brief.fps, "has_audio": True,
                                     "codec": "h264", "duration": expected, "duration_tolerance": 1.5}])  # fmt: skip

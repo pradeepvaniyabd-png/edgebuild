@@ -105,7 +105,8 @@ class Planner:
 
         # ---- creative requests are planned by the creative engine -----------------
         creative_intents = {Intent.VIDEO, Intent.IMAGE, Intent.VOICE, Intent.AUDIO, Intent.MULTIMODAL}
-        if intent.has(*creative_intents) or (intent.has(Intent.CONTENT) and intent.has(Intent.IMAGE)):
+        wants_factory = self.creative is not None and getattr(self.creative, "wants", lambda _c: False)(command)
+        if wants_factory or intent.has(*creative_intents) or (intent.has(Intent.CONTENT) and intent.has(Intent.IMAGE)):
             if self.creative is None:
                 notes.append("creative pipeline is not installed; visual requests were skipped")
             else:

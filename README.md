@@ -24,8 +24,18 @@ Dev mode: `npm run dev` (proxies to port 8765).
 ## Commands
 
 `run`, `resume`, `tasks`, `approvals`, `agents`, `tools`, `providers [--probe]`, `costs`, `logs`, `schedule`, `memory`, `db upgrade`,
-`doctor`, `audit`, and creative: `create-image`, `create-video`, `storyboard`, `generate-scene`, `render`, `qc`, `generation-status`, `projects`.
+`doctor`, `audit`, and creative: `factory` (topic → full content package), `create-image`, `create-video`, `storyboard`, `generate-scene`, `render`, `qc`, `generation-status`, `projects`.
 Each supports `--help`.
+
+## Autonomous video factory
+
+```bash
+super-agent factory "honesty" --category kids --language hinglish --seconds 30
+super-agent run "content package on monsoon farming, category: education"
+super-agent schedule add --name daily-kids --command "daily content: kids, honesty" --cron "0 7 * * *" --timezone Asia/Kolkata
+```
+Topic → idea → script → storyboard → characters → images → clips → voice → music → subtitles → thumbnail → metadata → QC.
+Everything is prepared automatically; export (and any publishing) waits for your approval.
 
 ## Providers
 

@@ -194,6 +194,25 @@ def create_video(prompt: str, json_out: bool = typer.Option(False, "--json")) ->
 
 
 @app.command()
+def factory(
+    topic: str,
+    category: str = typer.Option("", help="motivation, education, kids, tech, comedy, devotional, news or story"),
+    language: str = typer.Option("", help="en, hi or hinglish"),
+    seconds: float = typer.Option(30.0, help="target length"),
+    aspect: str = typer.Option("9:16"),
+    json_out: bool = typer.Option(False, "--json"),
+) -> None:
+    """Autonomous video factory: topic in, complete content package out (export waits for approval)."""
+    from ..core.dag import Task
+
+    inputs = {"topic": topic, "category": category, "duration_seconds": seconds, "aspect_ratio": aspect}
+    if language:
+        inputs["language"] = language
+    task = Task(description=f"content package: {topic}", agent="factory", action="package", input=inputs)
+    _finish(with_platform(lambda p: p.orchestrator.run_plan(f"content package: {topic}", [task])), json_out)
+
+
+@app.command()
 def storyboard(prompt: str, duration: float = 30.0, aspect: str = "9:16", style: str = "cinematic", language: str = "en") -> None:
     """Create a project and its storyboard only (no media is generated)."""
     from ..core.dag import Task
