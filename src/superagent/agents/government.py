@@ -60,7 +60,7 @@ class LetterInput(BaseModel):
 class GoswaraInput(BaseModel):
     path: str
     sheet: str | None = None
-    group_by: list[str] = Field(min_length=1)
+    group_by: list[str] = Field(default_factory=list)
     sum_columns: list[str] = Field(default_factory=list)
     title: str = "गोसवारा"
     out_path: str | None = None
@@ -230,9 +230,12 @@ class GovernmentAgent(BaseAgent):
         source = ctx.tools.context.sandbox.resolve(args.path)
         table = await asyncio.to_thread(tables.load_table, source, sheet=args.sheet)
         aggregations: list[dict[str, str]] = [{"op": "count", "as": "संख्या"}]
+        group_by = args.group_by or [c for c in [find_column(table, _AREA_HINTS)] if c]
+        if not group_by:
+            raise ValidationFailed("could not pick a grouping column", hint="pass group_by; columns: " + ", ".join(table.columns[:20]))
         sum_columns = [table.resolve(c) for c in args.sum_columns]
         aggregations += [{"op": "sum", "column": c, "as": f"कुल {c}"} for c in sum_columns]
-        grouped = tables.group_aggregate(table, args.group_by, aggregations)
+        grouped = tables.group_aggregate(table, group_by, aggregations)
         grouped = tables.sort_rows(grouped, grouped.columns[0])
         total: dict[str, Any] = {grouped.columns[0]: "योग", "संख्या": sum(r["संख्या"] for r in grouped.rows)}
         for column in sum_columns:

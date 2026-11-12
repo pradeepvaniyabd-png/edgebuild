@@ -126,3 +126,14 @@ def tool_ctx(settings: Settings, repo: Repo):
         memory=MemoryManager(repo, settings, ai), execution_id="exe_t", task_id="tsk_t", agent="tester",
         permission=PermissionLevel.SYSTEM_WRITE,
     )
+
+
+@pytest.fixture
+async def platform(settings: Settings, _template_db: Path):
+    """The real platform on a migrated SQLite copy: no provider keys, so only offline providers exist."""
+    from superagent.core.orchestrator import Platform
+
+    shutil.copy(_template_db, settings.home_path / "superagent.db")
+    instance = await Platform.create(settings, configure_log=False)
+    yield instance
+    await instance.aclose()

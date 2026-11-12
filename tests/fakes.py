@@ -17,6 +17,7 @@ import time
 import wave
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -342,3 +343,24 @@ def pdf_bytes(lines: list[str]) -> bytes:
         out += b"%010d 00000 n \n" % offset
     out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
     return bytes(out)
+
+
+def synthetic_candles(days: int = 6, step_minutes: int = 15, seed: int = 7) -> list[tuple[str, float, float, float, float, int]]:
+    """Deterministic 15-minute OHLCV rows spanning several UTC days, drifting up then down."""
+    import random
+    from datetime import datetime, timedelta
+
+    rng = random.Random(seed)
+    price = 2300.0
+    start = datetime(2026, 3, 2, 0, 0, tzinfo=UTC)
+    rows = []
+    for index in range(days * 24 * 60 // step_minutes):
+        moment = start + timedelta(minutes=index * step_minutes)
+        drift = 0.25 if index < days * 48 else -0.25
+        open_ = price
+        close = open_ + drift + rng.uniform(-2.5, 2.5)
+        high = max(open_, close) + rng.uniform(0.2, 1.8)
+        low = min(open_, close) - rng.uniform(0.2, 1.8)
+        rows.append((moment.strftime("%Y-%m-%d %H:%M:%S"), round(open_, 2), round(high, 2), round(low, 2), round(close, 2), int(rng.uniform(80, 400))))
+        price = close
+    return rows

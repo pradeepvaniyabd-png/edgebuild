@@ -1,7 +1,8 @@
 """Dependency-aware task graph.
 
-Tasks reference each other's outputs with ``${task_id.path.into.output}``; the
-reference is resolved when the task is dispatched, after its dependencies succeeded.
+Tasks reference each other's outputs with ``${task_id.path.into.output}`` (or
+``${task_id}`` for the whole output); the reference is resolved when the task is
+dispatched, after its dependencies succeeded.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from pydantic import BaseModel, Field
 from ..types import TERMINAL_TASK_STATUSES, TaskStatus
 from ..utils import deep_get, new_id, utcnow
 
-_REF = re.compile(r"\$\{([A-Za-z0-9_\-]+)\.([^}]+)\}")
+_REF = re.compile(r"\$\{([A-Za-z0-9_\-]+)(?:\.([^}]+))?\}")
 _UNSATISFIABLE = {TaskStatus.FAILED, TaskStatus.BLOCKED, TaskStatus.CANCELLED}
 
 
@@ -211,7 +212,7 @@ class TaskGraph:
             return self._lookup(whole.group(1), whole.group(2), task)
         return _REF.sub(lambda m: _as_text(self._lookup(m.group(1), m.group(2), task)), value)
 
-    def _lookup(self, ref_id: str, path: str, task: Task) -> Any:
+    def _lookup(self, ref_id: str, path: str | None, task: Task) -> Any:
         if ref_id not in self._tasks:
             raise GraphError(f"task '{task.id}' references unknown task '{ref_id}'")
         source = self._tasks[ref_id]
@@ -221,6 +222,8 @@ class TaskGraph:
             if source.optional:
                 return None
             raise GraphError(f"task '{task.id}' references '{ref_id}', which has no output yet")
+        if path is None:
+            return source.output
         try:
             return deep_get(source.output, path)
         except KeyError:
