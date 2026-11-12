@@ -435,5 +435,11 @@ def create_app(platform: Platform | None = None, settings: Settings | None = Non
         relative = str(target.relative_to(settings.workspace))
         return {"path": relative, "bytes": written, "hint": f"mention '{relative}' in your command"}
 
+    dist = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    if (dist / "index.html").is_file():
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/", StaticFiles(directory=dist, html=True), name="dashboard")
+
     _ = (asyncio, re)  # keep imports used by type checkers across refactors
     return app
