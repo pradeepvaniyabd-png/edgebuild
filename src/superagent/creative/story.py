@@ -201,6 +201,28 @@ class StoryEngine:
         return finalize(story, brief, style)
 
 
+_DIRECTIVES = [
+    re.compile(r"(?i)\(\s*make (?:a|an|the)? ?(?:short )?(?:video|film|reel|movie)\s*\)"),
+    re.compile(r"(?i)\b\d+(?:\.\d+)?\s*[-]?\s*(?:seconds?|secs?|sec|s|minutes?|mins?|min|सेकंड|सेकण्ड|मिनट)\b"),
+    re.compile(r"(?i)\b(?:in|mein|me|में)\s+(?:hinglish|hindi|english|हिंदी|हिन्दी)\b"),
+    re.compile(r"(?i)(?:hinglish|hindi|english|हिंदी|हिन्दी|अंग्रेज़ी|अंग्रेजी)\s+(?:mein|me|में|language)(?!\w)"),
+    re.compile(r"(?i)\b(?:9:16|16:9|1:1|4:5|vertical|horizontal|portrait|landscape)\b"),
+    re.compile(r"(?i)\b(?:ek\s+)?(?:short\s+)?(?:video|film|reel|movie)\s+(?:banao|bana\s+do|bana\s+de|banado|create\s+karo)\b"),
+    re.compile(r"(?i)\b(?:please\s+)?(?:create|make|generate|produce)\s+(?:me\s+)?(?:a|an|the)?\s*(?:short\s+)?(?:video|film|reel|movie)?\s*(?:about|on|of)?\b"),
+    re.compile(r"(?i)\bhinglish\b"),
+]
+
+
+def clean_idea(command: str) -> str:
+    """The subject of a request, without the production instructions (length, language, format)."""
+    text = command
+    for pattern in _DIRECTIVES:
+        text = pattern.sub(" ", text)
+    text = re.sub(r"\s*,\s*(?:,\s*)+", ", ", text)
+    text = re.sub(r"\s+", " ", text).strip(" ,.-:;")
+    return text if len(text) >= 3 else command.strip()
+
+
 def brief_from_command(command: str, entities: dict, detected_language: str | None = None, **overrides: object) -> CreativeBrief:
     """Build a brief from a natural-language request, inferring sensible defaults."""
     lang = detected_language or detect_language(command)
@@ -208,7 +230,7 @@ def brief_from_command(command: str, entities: dict, detected_language: str | No
     duration = float(entities.get("duration_seconds") or 30.0)
     quoted = (entities.get("quoted") or [""])[0]
     data = {
-        "idea": command.strip(), "title": quoted, "language": lang if lang in {"en", "hi", "hinglish"} else "en",
+        "idea": clean_idea(command), "title": quoted, "language": lang if lang in {"en", "hi", "hinglish"} else "en",
         "duration_seconds": max(5.0, min(600.0, duration)), "aspect_ratio": entities.get("aspect_ratio", "9:16"),
         "style": styles[0] if styles else "cinematic", "tone": entities.get("tone", ""),
     }  # fmt: skip
