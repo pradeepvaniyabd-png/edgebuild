@@ -133,10 +133,15 @@ class Orchestrator:
         execution_id = await self._open(command, source, project_id)
         return await self._run(execution_id, command, project_id)
 
-    async def submit(self, command: str, *, source: str = "api", project_id: str | None = None) -> str:
+    async def run_plan(self, command: str, tasks: list[Task], *, source: str = "cli", project_id: str | None = None) -> ExecutionResult:
+        """Run an explicit task list (used by the project CLI/API) through the same pipeline, skipping planning."""
+        execution_id = await self._open(command, source, project_id)
+        return await self._run(execution_id, command, project_id, tasks)
+
+    async def submit(self, command: str, *, source: str = "api", project_id: str | None = None, tasks: list[Task] | None = None) -> str:
         """Start an execution in the background and return its id immediately."""
         execution_id = await self._open(command, source, project_id)
-        task = asyncio.create_task(self._run(execution_id, command, project_id), name=f"execution:{execution_id}")
+        task = asyncio.create_task(self._run(execution_id, command, project_id, tasks), name=f"execution:{execution_id}")
         self._background[execution_id] = task
         task.add_done_callback(lambda _t, eid=execution_id: self._background.pop(eid, None))
         return execution_id
@@ -183,16 +188,16 @@ class Orchestrator:
         await self.p.events.emit(execution_id, "execution.created", {"command": truncate_middle(command, 500), "source": source})
         return execution_id
 
-    async def _run(self, execution_id: str, command: str, project_id: str | None) -> ExecutionResult:
+    async def _run(self, execution_id: str, command: str, project_id: str | None, tasks: list[Task] | None = None) -> ExecutionResult:
         repo, events = self.p.repo, self.p.events
         intent: IntentResult | None = None
         plan_notes: list[str] = []
         try:
             with log_context(execution_id=execution_id, agent="master"):
-                intent = await self.p.intents.detect(command)
+                intent = self.p.intents.classify(command) if tasks else await self.p.intents.detect(command)
                 await repo.update_execution(execution_id, intent=intent.model_dump(mode="json"))
                 await events.emit(execution_id, "intent.detected", intent.model_dump(mode="json"))
-                plan: Plan = await self.p.planner().plan(command, intent)
+                plan: Plan = Plan(tasks=tasks, method="explicit") if tasks else await self.p.planner().plan(command, intent)
                 plan_notes = plan.notes
                 graph = plan.graph()
                 await repo.save_tasks(execution_id, graph.tasks)
