@@ -275,7 +275,7 @@ def create_app(platform: Platform | None = None, settings: Settings | None = Non
             raise HTTPException(404, "unknown approval")
         eid = decided.get("execution_id")
         row = await p.repo.get_execution(eid) if eid else None
-        if row and row["status"] == "WAITING_APPROVAL" and body.approve and eid not in p.orchestrator._background:
+        if eid and row and row["status"] == "WAITING_APPROVAL" and body.approve and eid not in p.orchestrator._background:
             await p.orchestrator.resume(eid, wait=False)
         return decided
 

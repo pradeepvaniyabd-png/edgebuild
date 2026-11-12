@@ -86,13 +86,10 @@ def load_candles(path: Path, sheet: str | None = None) -> list[Candle]:
     candles: list[Candle] = []
     for row in table.rows:
         values = {f: tables.parse_number(row.get(c)) if c else 0.0 for f, c in columns.items()}
-        if any(values[f] is None for f in ("open", "high", "low", "close")):
+        o, h, low, c = (values[f] for f in ("open", "high", "low", "close"))
+        if o is None or h is None or low is None or c is None:
             continue
-        candles.append(Candle(
-            _parse_time(row.get(time_column)) if time_column else None,
-            float(values["open"]), float(values["high"]), float(values["low"]), float(values["close"]),
-            float(values["volume"] or 0.0),
-        ))  # fmt: skip
+        candles.append(Candle(_parse_time(row.get(time_column)) if time_column else None, o, h, low, c, float(values["volume"] or 0.0)))
     if len(candles) < 10:
         raise ValidationFailed(f"need at least 10 valid candles, found {len(candles)} in {path.name}")
     if all(c.time for c in candles):
@@ -186,7 +183,7 @@ def fair_value_gaps(candles: list[Candle], min_size: float = 0.0) -> list[dict[s
     for i in range(1, len(candles) - 1):
         before, after = candles[i - 1], candles[i + 1]
         if after.low > before.high and after.low - before.high > min_size:
-            zone = {"index": i, "direction": "bullish", "low": before.high, "high": after.low}
+            zone: dict[str, Any] = {"index": i, "direction": "bullish", "low": before.high, "high": after.low}
         elif after.high < before.low and before.low - after.high > min_size:
             zone = {"index": i, "direction": "bearish", "low": after.high, "high": before.low}
         else:
@@ -293,9 +290,10 @@ def session_breakouts(candles: list[Candle], hour: int, minute: int) -> list[dic
 
 # --------------------------------------------------------------------- summary
 def _stamp(candles: list[Candle], index: int | None) -> str | None:
-    if index is None or not (0 <= index < len(candles)) or candles[index].time is None:
+    if index is None or not (0 <= index < len(candles)):
         return None
-    return candles[index].time.strftime("%Y-%m-%d %H:%M UTC")  # type: ignore[union-attr]
+    moment = candles[index].time
+    return moment.strftime("%Y-%m-%d %H:%M UTC") if moment is not None else None
 
 
 def analyze(candles: list[Candle], *, sessions: list[tuple[int, int]] | None = None) -> dict[str, Any]:
@@ -438,7 +436,7 @@ def backtest_session_breakout(candles: list[Candle], hour: int, minute: int, rr:
         if risk <= 0:
             continue
         target = entry + rr * risk if long else entry - rr * risk
-        day = candles[setup["index"]].time.date()  # type: ignore[union-attr]
+        day = candles[setup["index"]].time.date()
         outcome = None
         last_close = entry
         for candle in candles[setup["break_index"] + 1 :]:

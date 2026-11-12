@@ -100,7 +100,7 @@ async def vision_review(ai: AI, path: Path, prompt: str) -> VisionRating | None:
         "distorted limbs, garbled text, melted shapes or seams (artifacts; 10 = none)."
     )
     try:
-        return await ai.complete_json(question, VisionRating, max_tokens=400, attempts=1)  # type: ignore[arg-type]
+        return await ai.complete_json(question, VisionRating, max_tokens=400, attempts=1)
     except Exception:
         log.info("vision review unavailable for %s", path.name, exc_info=True)
         return None

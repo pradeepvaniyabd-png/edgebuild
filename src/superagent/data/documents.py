@@ -100,7 +100,7 @@ def _pdf(path: Path) -> Extraction:
         raise FileProblem(f"cannot read PDF {path.name}: {exc}") from exc
     text = "\n\n".join(f"[page {i + 1}]\n{body.strip()}" for i, body in enumerate(pages) if body.strip())
     result = Extraction(path=str(path), kind="pdf", text=text, pages=len(pages))
-    info = reader.metadata or {}
+    info: Any = reader.metadata or {}
     result.metadata = {k.lstrip("/").lower(): str(v) for k, v in info.items() if v}
     empty = sum(1 for body in pages if not body.strip())
     if pages and empty == len(pages):

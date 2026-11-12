@@ -55,7 +55,7 @@ class Repo:
     async def _update(self, orm: type[DeclarativeBase], pk: Any, /, **fields: Any) -> None:
         if not fields:
             return
-        pk_col = next(iter(orm.__table__.primary_key.columns))
+        pk_col = next(iter(orm.__table__.primary_key.columns))  # type: ignore[attr-defined]
         attr_key = orm.__mapper__.get_property_by_column(pk_col).key
         async with self.db.write() as session:
             await session.execute(update(orm).where(getattr(orm, attr_key) == pk).values(**fields))
@@ -102,7 +102,7 @@ class Repo:
             result = await session.execute(
                 update(Execution).where(Execution.status.in_(active)).values(status=ExecutionStatus.INTERRUPTED.value)
             )
-            return result.rowcount or 0
+            return getattr(result, "rowcount", 0) or 0
 
     # -------------------------------------------------------------- tasks
     async def save_tasks(self, execution_id: str, tasks: Iterable[Any], start_position: int = 0) -> None:
@@ -114,7 +114,7 @@ class Repo:
         data = _task_fields(task)
         async with self.db.write() as session:
             result = await session.execute(update(TaskRow).where(TaskRow.id == task.id).values(**data))
-            if not result.rowcount:
+            if not getattr(result, "rowcount", 0):
                 session.add(TaskRow(id=task.id, execution_id=execution_id, position=0, **data))
 
     async def load_tasks(self, execution_id: str) -> list[dict[str, Any]]:
@@ -205,7 +205,7 @@ class Repo:
     async def delete_memory(self, id: str) -> bool:
         async with self.db.write() as session:
             result = await session.execute(delete(Memory).where(Memory.id == id))
-            return bool(result.rowcount)
+            return bool(getattr(result, "rowcount", 0))
 
     async def list_memories(
         self, kind: str | None = None, scopes: list[str] | None = None, limit: int = 2000
@@ -336,7 +336,7 @@ class Repo:
     async def delete_job(self, id: str) -> bool:
         async with self.db.write() as session:
             result = await session.execute(delete(ScheduledJob).where(ScheduledJob.id == id))
-            return bool(result.rowcount)
+            return bool(getattr(result, "rowcount", 0))
 
     # -------------------------------------------------------------- cache
     async def cache_get(self, key: str) -> dict[str, Any] | None:

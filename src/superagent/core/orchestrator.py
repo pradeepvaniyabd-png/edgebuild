@@ -7,6 +7,7 @@ is the only place that knows the whole pipeline.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,6 +46,7 @@ class Platform:
     def __init__(self, settings: Settings, db: Database, router: ProviderRouter, *, approval_prompt: Prompt | None = None,
                  blocking_approvals: bool = False, extra_agents: list[Any] | None = None):  # fmt: skip
         self.settings = settings
+        self.creative_services: Any = None  # attached by creative.install()
         self.db = db
         self.repo = Repo(db)
         self.router = router
@@ -129,6 +131,12 @@ class Orchestrator:
         self._background: dict[str, asyncio.Task[ExecutionResult]] = {}
 
     # ------------------------------------------------------------------ public
+    def _forget(self, execution_id: str) -> Callable[[asyncio.Future[Any]], None]:
+        def done(_task: asyncio.Future[Any]) -> None:
+            self._background.pop(execution_id, None)
+
+        return done
+
     async def run(self, command: str, *, source: str = "cli", project_id: str | None = None) -> ExecutionResult:
         execution_id = await self._open(command, source, project_id)
         return await self._run(execution_id, command, project_id)
@@ -143,7 +151,7 @@ class Orchestrator:
         execution_id = await self._open(command, source, project_id)
         task = asyncio.create_task(self._run(execution_id, command, project_id, tasks), name=f"execution:{execution_id}")
         self._background[execution_id] = task
-        task.add_done_callback(lambda _t, eid=execution_id: self._background.pop(eid, None))
+        task.add_done_callback(self._forget(execution_id))
         return execution_id
 
     async def resume(self, execution_id: str, *, wait: bool = True) -> ExecutionResult | str:
@@ -157,7 +165,7 @@ class Orchestrator:
             return await coroutine
         task = asyncio.create_task(coroutine, name=f"resume:{execution_id}")
         self._background[execution_id] = task
-        task.add_done_callback(lambda _t, eid=execution_id: self._background.pop(eid, None))
+        task.add_done_callback(self._forget(execution_id))
         return execution_id
 
     def cancel(self, execution_id: str) -> bool:

@@ -293,7 +293,7 @@ class GovernmentAgent(BaseAgent):
         percent = round(len(pending_rows) * 100 / total, 1) if total else 0.0
         findings = [f"{scheme}: कुल {total} प्रकरण, जिनमें से {len(pending_rows)} लंबित ({percent}%) एवं {total - len(pending_rows)} निराकृत।"]
         if area_rows:
-            worst = ", ".join(f"{r[area_column]} ({r['लंबित']})" for r in area_rows[:3] if r["लंबित"])
+            worst = ", ".join(f"{r.get(str(area_column))} ({r['लंबित']})" for r in area_rows[:3] if r["लंबित"])
             if worst:
                 findings.append(f"सर्वाधिक लंबित: {worst}।")
         title = f"{scheme} - लंबित प्रकरण प्रतिवेदन ({_today()})"

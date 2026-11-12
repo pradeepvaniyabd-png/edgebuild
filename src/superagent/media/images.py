@@ -16,8 +16,8 @@ def fit_image(path: Path, width: int, height: int, dest: Path | None = None) -> 
     """Cover-crop to exactly ``width``x``height`` so every provider's output matches the brief."""
     dest = dest or path
     try:
-        with Image.open(path) as image:
-            image = ImageOps.exif_transpose(image)
+        with Image.open(path) as opened:
+            image: Image.Image = ImageOps.exif_transpose(opened)
             if image.size != (width, height):
                 image = ImageOps.fit(image.convert("RGB"), (width, height), Image.Resampling.LANCZOS)
             elif image.mode not in ("RGB", "RGBA"):
@@ -34,8 +34,8 @@ def to_data_uri(path: Path, *, max_bytes: int = 900_000, max_side: int = 1536) -
     raw = path.read_bytes()
     mime = mimetypes.guess_type(path.name)[0] or "image/png"
     if len(raw) > max_bytes:
-        with Image.open(path) as image:
-            image = image.convert("RGB")
+        with Image.open(path) as opened:
+            image = opened.convert("RGB")
             image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
             for quality in (90, 80, 70, 60):
                 buffer = io.BytesIO()

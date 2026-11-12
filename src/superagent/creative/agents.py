@@ -208,7 +208,7 @@ class ImageAgent(BaseAgent):
         out_dir = ctx.tools.context.sandbox.resolve(out_dir, write=True)
         results = await ctx.ai.image(ImageRequest(prompt=args.prompt, negative_prompt=args.negative_prompt, width=args.width,
                                                   height=args.height, num_images=args.count, seed=_seed_bump(ctx) or None), out_dir)  # fmt: skip
-        scored = []
+        scored: list[dict[str, Any]] = []
         for r in results:
             q = await qc.qc_image_full(ctx.ai, r.path, args.prompt, width=args.width, height=args.height, review=False)
             scored.append({"path": str(r.path), "score": round(q.score, 4), "ok": q.ok, "problems": q.problems})

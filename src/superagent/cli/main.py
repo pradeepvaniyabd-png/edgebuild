@@ -149,8 +149,8 @@ def tasks(execution_id: str | None = typer.Argument(None), limit: int = 20) -> N
     """List recent executions, or show one in detail."""
     async def work(p: Platform) -> None:
         if execution_id is None:
-            for row in await p.repo.list_executions(limit):
-                typer.echo(f"{row['id']}  {row['status']:<17} {row['created_at']:%Y-%m-%d %H:%M}  {row['command'][:70]}")
+            for item in await p.repo.list_executions(limit):
+                typer.echo(f"{item['id']}  {item['status']:<17} {item['created_at']:%Y-%m-%d %H:%M}  {item['command'][:70]}")
             return
         row = await p.repo.get_execution(execution_id)
         if row is None:
