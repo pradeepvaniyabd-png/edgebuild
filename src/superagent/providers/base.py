@@ -246,6 +246,7 @@ class VoiceRequest(BaseModel):
     voice: str | None = None
     language: str = "en"
     speed: float = Field(1.0, gt=0.25, le=3.0)
+    variant: int = Field(0, ge=0, le=16)  # n-th distinct voice of the provider, for telling speakers apart
 
 
 class DialogueLine(BaseModel):

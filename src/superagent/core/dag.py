@@ -141,6 +141,18 @@ class TaskGraph:
             waves[depth[task.id]].append(task)
         return waves
 
+    def adopt(self, parent_id: str, spawned: list[Task]) -> None:
+        """A task's completion includes its spawned subtree: tasks waiting on the parent also wait for the spawned leaves."""
+        if not spawned:
+            return
+        ids = {task.id for task in spawned}
+        depended = {dep for task in spawned for dep in task.dependencies}
+        leaves = [task.id for task in spawned if task.id not in depended]
+        for waiting in self.dependents(parent_id):
+            if waiting.id not in ids and not waiting.is_terminal:
+                waiting.dependencies = [*waiting.dependencies, *[leaf for leaf in leaves if leaf not in waiting.dependencies]]
+        self.validate()
+
     def dependents(self, task_id: str) -> list[Task]:
         return [task for task in self._tasks.values() if task_id in task.dependencies]
 

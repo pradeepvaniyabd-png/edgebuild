@@ -135,6 +135,7 @@ class ParallelExecutor:
             if error is None and outcome is not None:
                 try:
                     graph.add_many(outcome.spawned)
+                    graph.adopt(task.id, outcome.spawned)
                 except GraphError as exc:
                     error = exc
                 else:

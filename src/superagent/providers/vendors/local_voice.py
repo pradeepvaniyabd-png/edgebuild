@@ -11,6 +11,7 @@ from ...proc import run_process, which
 from ...types import ProviderStatus, ProviderTier
 from ..base import Readiness, VoiceInfo, VoiceProvider, VoiceRequest, VoiceResult
 
+_VARIANTS = ["", "+m3", "+f2", "+m5", "+f4", "+m7", "+f5"]  # espeak-ng speaker variants
 _MIN_WAV_BYTES = 200  # a header-only WAV means the engine produced no speech
 
 
@@ -57,6 +58,8 @@ class EspeakVoice(VoiceProvider):
     async def text_to_speech(self, request: VoiceRequest, out_path: Path) -> VoiceResult:
         language = "hi" if has_devanagari(request.text) else request.language
         voice = request.voice or self.default_voice(language) or "en-us"
+        if request.variant and "+" not in voice:
+            voice += _VARIANTS[request.variant % len(_VARIANTS)]
         wav = _wav_target(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         words_per_minute = str(int(max(80, min(450, 160 * request.speed))))

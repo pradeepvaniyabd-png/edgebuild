@@ -129,6 +129,11 @@ class ComfyUIImage(ImageProvider):
         self._comfy = _Comfy(self.name, base_url, workflow, "COMFYUI_IMAGE_WORKFLOW")
         self.model = workflow.name if workflow else None
 
+    @property
+    def capabilities(self) -> frozenset[str]:  # type: ignore[override]
+        ready = self._comfy.readiness().ok
+        return frozenset({"generate", "reference"} if ready and self._comfy.needs_image() else {"generate"})
+
     def readiness(self) -> Readiness:
         return self._comfy.readiness()
 

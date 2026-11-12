@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     max_retries: int = Field(2, ge=0, le=10)
     context_token_budget: int = Field(6000, ge=500)
     llm_planning: bool = True
+    creative_quality: Literal["draft", "standard", "high"] = "standard"
 
     # --- approval / security -------------------------------------------------
     approval_mode: Literal["interactive", "queue", "deny"] = "queue"

@@ -82,8 +82,9 @@ def color_signature(path: Path, bins: int = 4) -> list[float]:
         small = image.convert("RGB").resize((64, 64))
         counts = [0] * (bins**3)
         step = 256 // bins
-        for red, green, blue in small.getdata():
-            counts[(red // step) * bins * bins + (green // step) * bins + (blue // step)] += 1
+        raw = small.tobytes()
+        for i in range(0, len(raw), 3):
+            counts[(raw[i] // step) * bins * bins + (raw[i + 1] // step) * bins + (raw[i + 2] // step)] += 1
         total = float(sum(counts)) or 1.0
         return [count / total for count in counts]
 

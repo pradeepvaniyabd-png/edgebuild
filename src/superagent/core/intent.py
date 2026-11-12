@@ -171,6 +171,10 @@ def extract_entities(command: str) -> dict[str, Any]:
         if any(_match(lowered, word) >= 0 for word in words):
             entities["tone"] = tone
             break
+    spoken = re.search(r"\b(?:in|mein|me)\s+(hinglish|hindi|english)\b|\b(hinglish|hindi|english)\s+(?:mein|me|language)\b|(हिंदी|हिन्दी)\s*(?:में|मे)", lowered)
+    if spoken:
+        word = next(g for g in spoken.groups() if g)
+        entities["language"] = {"hinglish": "hinglish", "hindi": "hi", "english": "en"}.get(word, "hi")
     quoted = _QUOTED.findall(command)
     if quoted:
         entities["quoted"] = quoted
