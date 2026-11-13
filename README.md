@@ -43,7 +43,7 @@ Routing order: local → free → paid cloud primary → secondary → local fal
 
 | Capability | Adapters |
 |---|---|
-| Language | Ollama, OpenAI-compatible (OmniRoute, FreeLLMAPI, LM Studio, OpenAI), Anthropic, Bedrock |
+| Language | Ollama; free tier: Groq, Gemini, OpenRouter (free models only unless pinned); OpenAI-compatible gateways (OmniRoute, FreeLLMAPI, LM Studio); OpenAI, Anthropic, Bedrock |
 | Image | ComfyUI, Replicate, fal, OpenAI |
 | Video | ComfyUI, Replicate, fal; FFmpeg camera motion over stills (**not generative**, labelled as such) |
 | Voice | Piper, espeak-ng, OpenAI TTS (edge-tts opt-in) |

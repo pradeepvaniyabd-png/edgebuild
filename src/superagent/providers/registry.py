@@ -26,8 +26,22 @@ from .vendors.openai_compat import (
     OpenAICompatLLM,
     OpenAICompatVoice,
     make_endpoint,
+    model_picker,
 )
 from .vendors.replicate import ReplicateImage, ReplicateVideo
+
+# Free-tier OpenAI-compatible services. Models are discovered from each live /models list unless pinned.
+FREE_PRESETS: tuple[tuple[str, str, str, str, object], ...] = (
+    ("groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "GROQ_MODEL",
+     model_picker(exclude=("whisper", "guard", "tts", "orpheus", "playai", "distil", "compound", "embed"),
+                  prefer=("gpt-oss-120b", "70b", "versatile", "120b", "llama"))),
+    ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "GEMINI_MODEL",
+     model_picker(include=("gemini", "flash"), exclude=("lite", "image", "tts", "live", "audio", "embed", "thinking", "native"),
+                  newest_first=True)),
+    ("openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "OPENROUTER_MODEL",
+     model_picker(include=(":free",), exclude=("1.7b", "code", "nano"),  # never a paid model unless OPENROUTER_MODEL says so
+                  prefer=("gemma-4-31b", "ultra", "super", "gemma", "nemotron"))),
+)  # fmt: skip
 
 _GATEWAY_TIERS = {"local": ProviderTier.LOCAL, "free": ProviderTier.FREE, "cloud": ProviderTier.CLOUD_PRIMARY}
 
@@ -58,6 +72,11 @@ async def build_router(settings: Settings) -> ProviderRouter:
     router.register(
         OpenAICompatLLM(gateway, name="gateway", model=settings.gateway_model, tier=gateway_tier, model_hint="SAX_GATEWAY_MODEL")
     )
+    for name, base_url, key_env, model_env, picker in FREE_PRESETS:
+        endpoint = make_endpoint(label=name, base_url=base_url, api_key=_secret(getattr(settings, f"{name}_api_key")),
+                                 requires_key=True, key_hint=f"set {key_env}")  # fmt: skip
+        router.register(OpenAICompatLLM(endpoint, name=name, model=getattr(settings, f"{name}_model"), tier=ProviderTier.FREE,
+                                        model_hint=model_env, pick_model=picker))  # type: ignore[arg-type]  # fmt: skip
     router.register(
         AnthropicLLM(
             _secret(settings.anthropic_api_key), settings.anthropic_model,

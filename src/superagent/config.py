@@ -80,6 +80,14 @@ class Settings(BaseSettings):
     anthropic_effort: str = Field("medium", validation_alias=_alias("ANTHROPIC_EFFORT"))
     anthropic_refusal_fallback: bool = Field(True, validation_alias=_alias("ANTHROPIC_REFUSAL_FALLBACK"))
 
+    # Free-tier OpenAI-compatible presets. With no *_MODEL set, a model is picked from the live /models list.
+    groq_api_key: SecretStr | None = Field(None, validation_alias=_alias("GROQ_API_KEY"))
+    groq_model: str | None = Field(None, validation_alias=_alias("GROQ_MODEL"))
+    openrouter_api_key: SecretStr | None = Field(None, validation_alias=_alias("OPENROUTER_API_KEY"))
+    openrouter_model: str | None = Field(None, validation_alias=_alias("OPENROUTER_MODEL"))  # unset: free models only
+    gemini_api_key: SecretStr | None = Field(None, validation_alias=_alias("GEMINI_API_KEY", "GOOGLE_API_KEY"))
+    gemini_model: str | None = Field(None, validation_alias=_alias("GEMINI_MODEL"))
+
     openai_api_key: SecretStr | None = Field(None, validation_alias=_alias("OPENAI_API_KEY"))
     openai_base_url: str = Field("https://api.openai.com/v1", validation_alias=_alias("OPENAI_BASE_URL"))
     openai_model: str | None = Field(None, validation_alias=_alias("OPENAI_MODEL"))

@@ -3,7 +3,10 @@ the same protocol (OmniRoute, FreeLLMAPI, LM Studio, LocalAI, vLLM, Ollama's /v1
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -49,12 +52,12 @@ class _Endpoint:
             self._client = new_client(headers=headers, timeout=httpx.Timeout(300.0, connect=10.0))
         return self._client
 
-    def readiness(self, model: str | None, model_hint: str) -> Readiness:
+    def readiness(self, model: str | None, model_hint: str, *, discoverable: bool = False) -> Readiness:
         if not self.base_url:
             return Readiness.not_configured(f"no endpoint URL ({self.key_hint})")
         if self.requires_key and not self.api_key:
             return Readiness.not_configured(f"no API key ({self.key_hint})")
-        if not model:
+        if not model and not discoverable:
             return Readiness.not_configured(f"no model selected (set {model_hint})")
         return Readiness.ready()
 
@@ -70,25 +73,75 @@ def make_endpoint(
     return _Endpoint(label=label, base_url=base_url, api_key=api_key, requires_key=requires_key, key_hint=key_hint)
 
 
+ModelPicker = Callable[[list[str]], str | None]
+
+
+def _version_key(model_id: str) -> tuple[float, ...]:
+    numbers = [float(n) for n in re.findall(r"\d+(?:\.\d+)?", model_id)[:3]]
+    return tuple(numbers) or (0.0,)
+
+
+def model_picker(*, include: tuple[str, ...] = (), exclude: tuple[str, ...] = (), prefer: tuple[str, ...] = (),
+                 newest_first: bool = False) -> ModelPicker:  # fmt: skip
+    """Choose a model id from a live /models list: filter, then rank by preferred keywords (and version)."""
+
+    def pick(ids: list[str]) -> str | None:
+        lowered = [(i, i.lower()) for i in ids]
+        pool = [i for i, low in lowered if all(k in low for k in include) and not any(k in low for k in exclude)]
+        if not pool:
+            return None
+
+        def rank(model_id: str) -> tuple[Any, ...]:
+            low = model_id.lower()
+            hit = next((n for n, word in enumerate(prefer) if word in low), len(prefer))
+            version = tuple(-v for v in _version_key(model_id)) if newest_first else ()
+            return (hit, "preview" in low or "exp" in low, *version, model_id)
+
+        return sorted(pool, key=rank)[0]
+
+    return pick
+
+
 class OpenAICompatLLM(LLMProvider):
     capabilities = frozenset({"chat", "vision"})
 
-    def __init__(self, endpoint: _Endpoint, *, name: str, model: str | None, tier: ProviderTier, model_hint: str):
+    def __init__(self, endpoint: _Endpoint, *, name: str, model: str | None, tier: ProviderTier, model_hint: str,
+                 pick_model: ModelPicker | None = None):  # fmt: skip
         self.endpoint = endpoint
         self.name = name
         self.model = model
         self.tier = tier
         self._model_hint = model_hint
+        self._pick_model = pick_model
+        self._discover_lock = asyncio.Lock()
         self.description = f"chat completions at {endpoint.base_url or '(unset)'}"
         # api.openai.com rejects max_tokens on current models; most compatible servers expect it.
         self._length_field = "max_completion_tokens" if "api.openai.com" in endpoint.base_url else "max_tokens"
         self._json_format = True
 
     def readiness(self) -> Readiness:
-        return self.endpoint.readiness(self.model, self._model_hint)
+        return self.endpoint.readiness(self.model, self._model_hint, discoverable=self._pick_model is not None)
 
     async def probe(self) -> None:
         await send(self.name, self.endpoint.client, "GET", f"{self.endpoint.base_url}/models")
+        await self._ensure_model()
+
+    async def _ensure_model(self) -> str:
+        if self.model:
+            return self.model
+        async with self._discover_lock:
+            if self.model:
+                return self.model
+            response = await send(self.name, self.endpoint.client, "GET", f"{self.endpoint.base_url}/models")
+            rows = json_body(self.name, response).get("data") or []
+            ids = [str(r.get("id", "")).removeprefix("models/") for r in rows if isinstance(r, dict) and r.get("id")]
+            chosen = self._pick_model(ids) if self._pick_model else None
+            if not chosen:
+                raise ProviderError(self.name, ProviderStatus.NOT_CONFIGURED,
+                                    f"no suitable model among {len(ids)} listed (set {self._model_hint})", penalize=False)  # fmt: skip
+            self.model = chosen
+            self.description = f"{chosen} at {self.endpoint.base_url}"
+            return chosen
 
     async def aclose(self) -> None:
         await self.endpoint.aclose()
@@ -102,6 +155,7 @@ class OpenAICompatLLM(LLMProvider):
             _attach_images(messages, request.images)
         wants_json = request.json_mode or request.json_schema is not None
 
+        await self._ensure_model()
         data: dict[str, Any] = {}
         adaptations = 0
         while True:
